@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scanner Zebra</title>
+    <title>Scanner Zebra PWA</title>
     
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Scanner Zebra","short_name":"Scanner","start_url":".","display":"standalone","background_color":"%23000","theme_color":"%23000"}'>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
@@ -17,14 +19,11 @@
         button { padding: 40px; font-size: 30px; margin: 10px; border: none; color: white; cursor: pointer; border-radius: 20px; font-weight: bold; width: 40%; }
         .btn-frio { background-color: #007bff; }
         .btn-quente { background-color: #dc3545; }
-        
         table { width: 100%; max-width: 900px; margin-top: 40px; border-collapse: collapse; background: #1a1a1a; font-size: 20px; color: #fff; cursor: pointer; }
         th, td { border: 2px solid #333; padding: 15px; text-align: center; }
         th { background: #333; color: #fff; cursor: default; }
         tr:hover { background: #2a2a2a; }
-
-        .btn-export-container { width: 100%; max-width: 900px; margin-top: 20px; }
-        .btn-export { background-color: #28a745; width: 100%; padding: 25px; font-size: 25px; border-radius: 15px; color: white; border: none; cursor: pointer; }
+        .btn-export { background-color: #28a745; width: 100%; max-width: 900px; margin-top: 20px; padding: 25px; font-size: 25px; border-radius: 15px; color: white; border: none; }
     </style>
 </head>
 <body>
@@ -34,7 +33,6 @@
         <div id="input-area">
             <input type="text" id="codigo-input" autocomplete="off" autofocus placeholder="Picar código...">
         </div>
-        
         <div id="choice-area" class="hidden">
             <p style="font-size: 2em;">Código: <strong id="display-code" style="color: #fff;"></strong></p>
             <button class="btn-frio" onclick="finalizar('Frio')">FRIO</button>
@@ -47,11 +45,21 @@
         <tbody id="tabela-corpo" onclick="confirmarExclusao(event)"></tbody>
     </table>
 
-    <div class="btn-export-container">
-        <button class="btn-export" onclick="exportarExcel()">EXPORTAR PARA EXCEL (.xlsx)</button>
-    </div>
+    <button class="btn-export" onclick="exportarExcel()">EXPORTAR PARA EXCEL</button>
 
     <script>
+        // Registro do Service Worker (Offline Support)
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                self.addEventListener('fetch', (event) => {
+                    event.respondWith(caches.match(event.request).then(res => res || fetch(event.request)));
+                });
+            `;
+            const blob = new Blob([swCode], {type: 'application/javascript'});
+            const swUrl = URL.createObjectURL(blob);
+            navigator.serviceWorker.register(swUrl);
+        }
+
         const inputField = document.getElementById('codigo-input');
         const inputArea = document.getElementById('input-area');
         const choiceArea = document.getElementById('choice-area');
@@ -69,11 +77,7 @@
             const codigo = inputField.value;
             const tabela = document.getElementById('tabela-corpo');
             const row = tabela.insertRow(0);
-            
-            // Inserindo apenas Código e Estado
-            row.innerHTML = `<td>${codigo}</td>
-                             <td style="color:${estado === 'Frio' ? '#007bff' : '#dc3545'}; font-weight:bold;">${estado}</td>`;
-            
+            row.innerHTML = `<td>${codigo}</td><td style="color:${estado === 'Frio' ? '#007bff' : '#dc3545'}; font-weight:bold;">${estado}</td>`;
             inputField.value = "";
             inputArea.classList.remove('hidden');
             choiceArea.classList.add('hidden');
@@ -81,17 +85,11 @@
         }
 
         function confirmarExclusao(event) {
-            const target = event.target;
-            if (target.tagName === 'TD') {
-                if (confirm("Deseja eliminar esta linha da tabela?")) {
-                    target.parentNode.remove();
-                }
-            }
+            if (event.target.tagName === 'TD' && confirm("Eliminar linha?")) event.target.parentNode.remove();
         }
 
         function exportarExcel() {
-            const table = document.getElementById("tabela-dados");
-            const wb = XLSX.utils.table_to_book(table, {sheet: "Scanner"});
+            const wb = XLSX.utils.table_to_book(document.getElementById("tabela-dados"), {sheet: "Scanner"});
             XLSX.writeFile(wb, "Relatorio_Scanner.xlsx");
         }
 
