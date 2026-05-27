@@ -19,8 +19,13 @@
         th, td { border: 2px solid #333; padding: 15px; text-align: center; }
         th { background: #333; }
         .val-frio { color: #007bff; font-weight: bold; }
-        .val-quente { color: #dc3545; font-weight: bold; }
+        /* Vermelho escuro alterado aqui */
+        .val-quente { color: #8b0000; font-weight: bold; } 
         .btn-export { background-color: #28a745; width: 100%; max-width: 900px; margin-top: 20px; padding: 25px; font-size: 25px; border-radius: 15px; color: white; border: none; cursor: pointer; }
+        
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #222; padding: 40px; border-radius: 20px; text-align: center; }
+        .btn-modal { padding: 30px 60px; font-size: 30px; margin: 10px; border: none; border-radius: 15px; cursor: pointer; color: white; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -31,14 +36,21 @@
     </div>
 
     <table id="tabela-dados">
-        <thead><tr><th>Código</th><th>Frio</th><th>Quente</th></tr></thead>
+        <thead><tr><th>Código</th><th>Frio</th><th>Quente</th><th>Status</th></tr></thead>
         <tbody id="tabela-corpo" onclick="confirmarExclusao(event)"></tbody>
     </table>
 
     <button class="btn-export" onclick="exportarExcel()">EXPORTAR PARA EXCEL</button>
 
+    <div id="modal">
+        <div class="modal-content">
+            <h2 id="modal-titulo">Resultado?</h2>
+            <button class="btn-modal" style="background: #28a745;" onclick="finalizar(true)">OK</button>
+            <button class="btn-modal" style="background: #dc3545;" onclick="finalizar(false)">NOK</button>
+        </div>
+    </div>
+
     <script>
-        // Registro do Service Worker para suporte offline
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register(new Blob([`
                 self.addEventListener('fetch', (event) => {
@@ -49,6 +61,7 @@
 
         const input = document.getElementById('main-input');
         const instrucao = document.getElementById('instrucao');
+        const modal = document.getElementById('modal');
         
         let etapa = 0; 
         let dados = { codigo: '', frio: '', quente: '' };
@@ -60,22 +73,17 @@
                 if (etapa === 0) {
                     dados.codigo = valor;
                     instrucao.innerText = "Digite o valor FRIO (Manual)";
-                    input.inputMode = "text";
                     input.style.borderColor = "#007bff";
                     etapa = 1;
                 } else if (etapa === 1) {
                     dados.frio = valor;
                     instrucao.innerText = "Digite o valor QUENTE (Manual)";
-                    input.style.borderColor = "#dc3545";
+                    input.style.borderColor = "#8b0000";
                     etapa = 2;
                 } else if (etapa === 2) {
                     dados.quente = valor;
-                    adicionarLinha();
-                    dados = { codigo: '', frio: '', quente: '' };
-                    etapa = 0;
-                    instrucao.innerText = "Picar Código (Scanner)";
-                    input.inputMode = "text";
-                    input.style.borderColor = "#444";
+                    input.blur();
+                    modal.style.display = "flex";
                 }
                 
                 input.value = "";
@@ -83,10 +91,20 @@
             }
         });
 
-        function adicionarLinha() {
+        function finalizar(status) {
+            modal.style.display = "none";
+            const resultado = status ? "OK" : "NOK";
+            const cor = status ? "#28a745" : "#dc3545";
+            
             const tabela = document.getElementById('tabela-corpo');
             const row = tabela.insertRow(0);
-            row.innerHTML = `<td>${dados.codigo}</td><td class="val-frio">${dados.frio}</td><td class="val-quente">${dados.quente}</td>`;
+            row.innerHTML = `<td>${dados.codigo}</td><td class="val-frio">${dados.frio}</td><td class="val-quente">${dados.quente}</td><td style="color:${cor}; font-weight:bold;">${resultado}</td>`;
+            
+            dados = { codigo: '', frio: '', quente: '' };
+            etapa = 0;
+            instrucao.innerText = "Picar Código (Scanner)";
+            input.style.borderColor = "#444";
+            input.focus();
         }
 
         function confirmarExclusao(event) {
