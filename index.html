@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scanner Zebra</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 20px; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 900px; background: #1a1a1a; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(255,255,255,0.05); text-align: center; }
+        h2 { font-size: 3em; margin-top: 0; color: #ccc; }
+        input { padding: 30px; font-size: 40px; width: 100%; border: 4px solid #444; border-radius: 15px; text-align: center; box-sizing: border-box; margin-top: 20px; background: #000; color: #fff; }
+        .hidden { display: none; }
+        #choice-area { margin-top: 40px; }
+        button { padding: 40px; font-size: 30px; margin: 10px; border: none; color: white; cursor: pointer; border-radius: 20px; font-weight: bold; width: 40%; }
+        .btn-frio { background-color: #007bff; }
+        .btn-quente { background-color: #dc3545; }
+        
+        table { width: 100%; max-width: 900px; margin-top: 40px; border-collapse: collapse; background: #1a1a1a; font-size: 20px; color: #fff; cursor: pointer; }
+        th, td { border: 2px solid #333; padding: 15px; text-align: center; }
+        th { background: #333; color: #fff; cursor: default; }
+        tr:hover { background: #2a2a2a; }
+
+        .btn-export-container { width: 100%; max-width: 900px; margin-top: 20px; }
+        .btn-export { background-color: #28a745; width: 100%; padding: 25px; font-size: 25px; border-radius: 15px; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Scanner</h2>
+        <div id="input-area">
+            <input type="text" id="codigo-input" autocomplete="off" autofocus placeholder="Picar código...">
+        </div>
+        
+        <div id="choice-area" class="hidden">
+            <p style="font-size: 2em;">Código: <strong id="display-code" style="color: #fff;"></strong></p>
+            <button class="btn-frio" onclick="finalizar('Frio')">FRIO</button>
+            <button class="btn-quente" onclick="finalizar('Quente')">QUENTE</button>
+        </div>
+    </div>
+
+    <table id="tabela-dados">
+        <thead><tr><th>Código</th><th>Estado</th></tr></thead>
+        <tbody id="tabela-corpo" onclick="confirmarExclusao(event)"></tbody>
+    </table>
+
+    <div class="btn-export-container">
+        <button class="btn-export" onclick="exportarExcel()">EXPORTAR PARA EXCEL (.xlsx)</button>
+    </div>
+
+    <script>
+        const inputField = document.getElementById('codigo-input');
+        const inputArea = document.getElementById('input-area');
+        const choiceArea = document.getElementById('choice-area');
+        const displayCode = document.getElementById('display-code');
+
+        inputField.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && inputField.value.trim() !== "") {
+                displayCode.innerText = inputField.value;
+                inputArea.classList.add('hidden');
+                choiceArea.classList.remove('hidden');
+            }
+        });
+
+        function finalizar(estado) {
+            const codigo = inputField.value;
+            const tabela = document.getElementById('tabela-corpo');
+            const row = tabela.insertRow(0);
+            
+            // Inserindo apenas Código e Estado
+            row.innerHTML = `<td>${codigo}</td>
+                             <td style="color:${estado === 'Frio' ? '#007bff' : '#dc3545'}; font-weight:bold;">${estado}</td>`;
+            
+            inputField.value = "";
+            inputArea.classList.remove('hidden');
+            choiceArea.classList.add('hidden');
+            inputField.focus();
+        }
+
+        function confirmarExclusao(event) {
+            const target = event.target;
+            if (target.tagName === 'TD') {
+                if (confirm("Deseja eliminar esta linha da tabela?")) {
+                    target.parentNode.remove();
+                }
+            }
+        }
+
+        function exportarExcel() {
+            const table = document.getElementById("tabela-dados");
+            const wb = XLSX.utils.table_to_book(table, {sheet: "Scanner"});
+            XLSX.writeFile(wb, "Relatorio_Scanner.xlsx");
+        }
+
+        document.addEventListener('click', () => inputField.focus());
+        window.onload = () => inputField.focus();
+    </script>
+</body>
+</html>
