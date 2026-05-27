@@ -3,86 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scanner Zebra PWA</title>
-    
-    <!-- Manifesto atualizado com ícone -->
-    <link rel="manifest" href='data:application/manifest+json,{"name":"Trigo Bosch","short_name":"Trigo Bosch","start_url":".","display":"standalone","background_color":"%23000","theme_color":"%23000","icons":[{"src":"https://github.com/user-attachments/assets/78790071-93f2-4de7-8db4-dcb8cc28b45b","sizes":"512x512","type":"image/png"}]}'>
-
+    <title>Scanner Manual</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
     <style>
         body { font-family: sans-serif; margin: 0; padding: 20px; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 900px; background: #1a1a1a; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(255,255,255,0.05); text-align: center; }
-        h2 { font-size: 3em; margin-top: 0; color: #ccc; }
-        input { padding: 30px; font-size: 40px; width: 100%; border: 4px solid #444; border-radius: 15px; text-align: center; box-sizing: border-box; margin-top: 20px; background: #000; color: #fff; }
-        .hidden { display: none; }
-        #choice-area { margin-top: 40px; }
-        button { padding: 40px; font-size: 30px; margin: 10px; border: none; color: white; cursor: pointer; border-radius: 20px; font-weight: bold; width: 40%; }
-        .btn-frio { background-color: #007bff; }
-        .btn-quente { background-color: #dc3545; }
-        table { width: 100%; max-width: 900px; margin-top: 40px; border-collapse: collapse; background: #1a1a1a; font-size: 20px; color: #fff; cursor: pointer; }
+        .container { width: 100%; max-width: 900px; background: #1a1a1a; padding: 40px; border-radius: 20px; text-align: center; }
+        h2 { font-size: 2em; color: #ccc; }
+        input { padding: 30px; font-size: 40px; width: 100%; border: 4px solid #444; border-radius: 15px; text-align: center; box-sizing: border-box; background: #000; color: #fff; }
+        table { width: 100%; max-width: 900px; margin-top: 40px; border-collapse: collapse; background: #1a1a1a; font-size: 20px; }
         th, td { border: 2px solid #333; padding: 15px; text-align: center; }
-        th { background: #333; color: #fff; cursor: default; }
-        tr:hover { background: #2a2a2a; }
-        .btn-export { background-color: #28a745; width: 100%; max-width: 900px; margin-top: 20px; padding: 25px; font-size: 25px; border-radius: 15px; color: white; border: none; }
+        th { background: #333; }
+        .val-frio { color: #007bff; font-weight: bold; }
+        .val-quente { color: #dc3545; font-weight: bold; }
+        .btn-export { background-color: #28a745; width: 100%; max-width: 900px; margin-top: 20px; padding: 25px; font-size: 25px; border-radius: 15px; color: white; border: none; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>Scanner</h2>
-        <div id="input-area">
-            <input type="text" id="codigo-input" autocomplete="off" autofocus placeholder="Picar código...">
-        </div>
-        <div id="choice-area" class="hidden">
-            <p style="font-size: 2em;">Código: <strong id="display-code" style="color: #fff;"></strong></p>
-            <button class="btn-frio" onclick="finalizar('Frio')">FRIO</button>
-            <button class="btn-quente" onclick="finalizar('Quente')">QUENTE</button>
-        </div>
+        <h2 id="instrucao">Picar Código (Scanner)</h2>
+        <input type="text" id="main-input" autocomplete="off" autofocus>
     </div>
 
     <table id="tabela-dados">
-        <thead><tr><th>Código</th><th>Estado</th></tr></thead>
+        <thead><tr><th>Código</th><th>Frio</th><th>Quente</th></tr></thead>
         <tbody id="tabela-corpo" onclick="confirmarExclusao(event)"></tbody>
     </table>
 
     <button class="btn-export" onclick="exportarExcel()">EXPORTAR PARA EXCEL</button>
 
     <script>
-        // Registro do Service Worker (Offline Support)
-        if ('serviceWorker' in navigator) {
-            const swCode = `
-                self.addEventListener('fetch', (event) => {
-                    event.respondWith(caches.match(event.request).then(res => res || fetch(event.request)));
-                });
-            `;
-            const blob = new Blob([swCode], {type: 'application/javascript'});
-            const swUrl = URL.createObjectURL(blob);
-            navigator.serviceWorker.register(swUrl);
-        }
+        const input = document.getElementById('main-input');
+        const instrucao = document.getElementById('instrucao');
+        
+        let etapa = 0; 
+        let dados = { codigo: '', frio: '', quente: '' };
 
-        const inputField = document.getElementById('codigo-input');
-        const inputArea = document.getElementById('input-area');
-        const choiceArea = document.getElementById('choice-area');
-        const displayCode = document.getElementById('display-code');
-
-        inputField.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" && inputField.value.trim() !== "") {
-                displayCode.innerText = inputField.value;
-                inputArea.classList.add('hidden');
-                choiceArea.classList.remove('hidden');
+        input.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && input.value.trim() !== "") {
+                const valor = input.value.trim();
+                
+                if (etapa === 0) {
+                    dados.codigo = valor;
+                    instrucao.innerText = "Digite o valor FRIO (Manual)";
+                    input.inputMode = "decimal"; // Abre teclado numérico
+                    input.style.borderColor = "#007bff";
+                    etapa = 1;
+                } else if (etapa === 1) {
+                    dados.frio = valor;
+                    instrucao.innerText = "Digite o valor QUENTE (Manual)";
+                    input.style.borderColor = "#dc3545";
+                    etapa = 2;
+                } else if (etapa === 2) {
+                    dados.quente = valor;
+                    adicionarLinha();
+                    // Reset
+                    dados = { codigo: '', frio: '', quente: '' };
+                    etapa = 0;
+                    instrucao.innerText = "Picar Código (Scanner)";
+                    input.inputMode = "text";
+                    input.style.borderColor = "#444";
+                }
+                
+                input.value = "";
+                input.focus();
             }
         });
 
-        function finalizar(estado) {
-            const codigo = inputField.value;
+        function adicionarLinha() {
             const tabela = document.getElementById('tabela-corpo');
             const row = tabela.insertRow(0);
-            row.innerHTML = `<td>${codigo}</td><td style="color:${estado === 'Frio' ? '#007bff' : '#dc3545'}; font-weight:bold;">${estado}</td>`;
-            inputField.value = "";
-            inputArea.classList.remove('hidden');
-            choiceArea.classList.add('hidden');
-            inputField.focus();
+            row.innerHTML = `<td>${dados.codigo}</td><td class="val-frio">${dados.frio}</td><td class="val-quente">${dados.quente}</td>`;
         }
 
         function confirmarExclusao(event) {
@@ -93,9 +84,6 @@
             const wb = XLSX.utils.table_to_book(document.getElementById("tabela-dados"), {sheet: "Scanner"});
             XLSX.writeFile(wb, "Relatorio_Scanner.xlsx");
         }
-
-        document.addEventListener('click', () => inputField.focus());
-        window.onload = () => inputField.focus();
     </script>
 </body>
 </html>
