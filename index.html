@@ -3,13 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scanner Manual</title>
+    <meta name="theme-color" content="#000000">
+    <title>Scanner Trigo Bosch</title>
+
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Trigo Bosch Scanner","short_name":"Trigo Bosch","start_url":"./","display":"standalone","background_color":"%23000000","theme_color":"%23000000","icons":[{"src":"https://github.com/user-attachments/assets/78790071-93f2-4de7-8db4-dcb8cc28b45b","sizes":"512x512","type":"image/png"}]}'>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
     <style>
         body { font-family: sans-serif; margin: 0; padding: 20px; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 900px; background: #1a1a1a; padding: 40px; border-radius: 20px; text-align: center; }
-        h2 { font-size: 2em; color: #ccc; }
-        input { padding: 30px; font-size: 40px; width: 100%; border: 4px solid #444; border-radius: 15px; text-align: center; box-sizing: border-box; background: #000; color: #fff; }
+        h2 { font-size: 2em; color: #ccc; margin-bottom: 20px; }
+        input { padding: 30px; font-size: 40px; width: 100%; border: 4px solid #444; border-radius: 15px; text-align: center; box-sizing: border-box; background: #000; color: #fff; outline: none; }
         table { width: 100%; max-width: 900px; margin-top: 40px; border-collapse: collapse; background: #1a1a1a; font-size: 20px; }
         th, td { border: 2px solid #333; padding: 15px; text-align: center; }
         th { background: #333; }
@@ -33,6 +38,15 @@
     <button class="btn-export" onclick="exportarExcel()">EXPORTAR PARA EXCEL</button>
 
     <script>
+        // Registro do Service Worker para suporte offline
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(new Blob([`
+                self.addEventListener('fetch', (event) => {
+                    event.respondWith(caches.match(event.request).then(res => res || fetch(event.request)));
+                });
+            `], {type: 'application/javascript'}));
+        }
+
         const input = document.getElementById('main-input');
         const instrucao = document.getElementById('instrucao');
         
@@ -46,7 +60,7 @@
                 if (etapa === 0) {
                     dados.codigo = valor;
                     instrucao.innerText = "Digite o valor FRIO (Manual)";
-                    input.inputMode = "decimal"; // Abre teclado numérico
+                    input.inputMode = "decimal";
                     input.style.borderColor = "#007bff";
                     etapa = 1;
                 } else if (etapa === 1) {
@@ -57,7 +71,6 @@
                 } else if (etapa === 2) {
                     dados.quente = valor;
                     adicionarLinha();
-                    // Reset
                     dados = { codigo: '', frio: '', quente: '' };
                     etapa = 0;
                     instrucao.innerText = "Picar Código (Scanner)";
