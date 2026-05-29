@@ -35,17 +35,19 @@
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: #222; padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 400px; }
         .btn-modal { padding: 20px; font-size: 1.5rem; margin: 10px; border: none; border-radius: 10px; cursor: pointer; color: white; font-weight: bold; width: 45%; }
+        #filtro-input { font-size: 1rem; padding: 10px; margin-bottom: 0; border: 1px solid #444; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div class="versao">v1.0.3</div>
+        <div class="versao">v1.0.4</div>
         <h2 id="instrucao">Picar Código (Scanner)</h2>
         <input type="text" id="main-input" autocomplete="off" autofocus>
     </div>
 
     <div class="table-wrapper">
+        <input type="text" id="filtro-input" placeholder="🔍 Procurar código..." oninput="renderizarTabela()">
         <table id="tabela-dados">
             <thead><tr><th>Código</th><th>Frio</th><th>Quente</th><th>Status</th></tr></thead>
             <tbody id="tabela-corpo" onclick="confirmarExclusao(event)"></tbody>
@@ -69,6 +71,7 @@
         const itensPorPagina = 10;
 
         const input = document.getElementById('main-input');
+        const filtro = document.getElementById('filtro-input');
         const instrucao = document.getElementById('instrucao');
         const modal = document.getElementById('modal');
         let etapa = 0; 
@@ -77,21 +80,26 @@
         function renderizarTabela() {
             const corpo = document.getElementById('tabela-corpo');
             corpo.innerHTML = '';
+            
+            const termoBusca = filtro.value.toLowerCase();
+            const dadosFiltrados = listaDados.filter(item => item.codigo.toLowerCase().includes(termoBusca));
+            
             const inicio = (paginaAtual - 1) * itensPorPagina;
             const fim = inicio + itensPorPagina;
-            const paginado = listaDados.slice(inicio, fim);
+            const paginado = dadosFiltrados.slice(inicio, fim);
 
             paginado.forEach((item, i) => {
+                const realIndex = listaDados.indexOf(item);
                 const row = corpo.insertRow();
-                row.innerHTML = `<td style="display:none">${inicio + i}</td><td>${item.codigo}</td><td class="val-frio">${item.frio}</td><td class="val-quente">${item.quente}</td><td style="color:${item.status === 'OK' ? '#28a745' : '#dc3545'}; font-weight:bold;">${item.status}</td>`;
+                row.innerHTML = `<td style="display:none">${realIndex}</td><td>${item.codigo}</td><td class="val-frio">${item.frio}</td><td class="val-quente">${item.quente}</td><td style="color:${item.status === 'OK' ? '#28a745' : '#dc3545'}; font-weight:bold;">${item.status}</td>`;
             });
-            renderizarPaginacao();
+            renderizarPaginacao(dadosFiltrados.length);
         }
 
-        function renderizarPaginacao() {
+        function renderizarPaginacao(totalItens) {
             const pagDiv = document.getElementById('paginacao');
             pagDiv.innerHTML = '';
-            const totalPaginas = Math.ceil(listaDados.length / itensPorPagina);
+            const totalPaginas = Math.ceil(totalItens / itensPorPagina);
             for(let i=1; i<=totalPaginas; i++) {
                 const btn = document.createElement('button');
                 btn.innerText = i;
@@ -104,7 +112,6 @@
             if (event.key === "Enter" && input.value.trim() !== "") {
                 const valor = input.value.trim();
                 if (etapa === 0) { 
-                    // Verifica duplicidade no início do processo
                     if (listaDados.some(item => item.codigo === valor)) {
                         alert("Este código já foi registrado!");
                         input.value = "";
