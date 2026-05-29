@@ -2,33 +2,30 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#000000">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scanner Trigo Bosch</title>
-
-    <link rel="manifest" href='data:application/manifest+json,{"name":"Trigo Bosch Scanner","short_name":"Trigo Bosch","start_url":"./","display":"standalone","background_color":"%23000000","theme_color":"%23000000","icons":[{"src":"https://github.com/user-attachments/assets/78790071-93f2-4de7-8db4-dcb8cc28b45b","sizes":"512x512","type":"image/png"}]}'>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 20px; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 900px; background: #1a1a1a; padding: 40px; border-radius: 20px; text-align: center; }
-        h2 { font-size: 2em; color: #ccc; margin-bottom: 20px; }
-        input { padding: 30px; font-size: 40px; width: 100%; border: 4px solid #444; border-radius: 15px; text-align: center; box-sizing: border-box; background: #000; color: #fff; outline: none; }
-        table { width: 100%; max-width: 900px; margin-top: 40px; border-collapse: collapse; background: #1a1a1a; font-size: 20px; }
-        th, td { border: 2px solid #333; padding: 15px; text-align: center; }
-        th { background: #333; }
-        .val-frio { color: #007bff; font-weight: bold; }
-        /* Vermelho escuro alterado aqui */
-        .val-quente { color: #8b0000; font-weight: bold; } 
-        .btn-export { background-color: #28a745; width: 100%; max-width: 900px; margin-top: 20px; padding: 25px; font-size: 25px; border-radius: 15px; color: white; border: none; cursor: pointer; }
+        body { font-family: sans-serif; margin: 0; padding: 20px; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; position: relative; }
         
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; }
+        /* Versão v1.0 no canto superior direito */
+        .versao { position: absolute; top: 10px; right: 10px; font-size: 12px; color: #555; }
+
+        .container { width: 100%; max-width: 900px; background: #1a1a1a; padding: 40px; border-radius: 20px; text-align: center; }
+        input { padding: 20px; font-size: 30px; width: 100%; border: 4px solid #444; border-radius: 15px; text-align: center; background: #000; color: #fff; outline: none; }
+        table { width: 100%; max-width: 900px; margin-top: 20px; border-collapse: collapse; background: #1a1a1a; }
+        th, td { border: 2px solid #333; padding: 15px; text-align: center; }
+        .pagination { margin: 20px 0; }
+        .pagination button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .btn-export { background-color: #28a745; width: 100%; max-width: 900px; padding: 20px; font-size: 20px; border: none; cursor: pointer; color: white; border-radius: 10px; }
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         .modal-content { background: #222; padding: 40px; border-radius: 20px; text-align: center; }
-        .btn-modal { padding: 30px 60px; font-size: 30px; margin: 10px; border: none; border-radius: 15px; cursor: pointer; color: white; font-weight: bold; }
+        .btn-modal { padding: 20px 40px; font-size: 20px; margin: 10px; border-radius: 10px; cursor: pointer; color: white; border: none; }
     </style>
 </head>
 <body>
+
+    <div class="versao">v1.0</div>
 
     <div class="container">
         <h2 id="instrucao">Picar Código (Scanner)</h2>
@@ -36,10 +33,11 @@
     </div>
 
     <table id="tabela-dados">
-        <thead><tr><th>Código</th><th>Frio</th><th>Quente</th><th>Status</th></tr></thead>
-        <tbody id="tabela-corpo" onclick="confirmarExclusao(event)"></tbody>
+        <thead><tr><th>Código</th><th>Frio</th><th>Quente</th><th>Status</th><th>Ação</th></tr></thead>
+        <tbody id="tabela-corpo"></tbody>
     </table>
 
+    <div class="pagination" id="paginacao"></div>
     <button class="btn-export" onclick="exportarExcel()">EXPORTAR PARA EXCEL</button>
 
     <div id="modal">
@@ -51,70 +49,72 @@
     </div>
 
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register(new Blob([`
-                self.addEventListener('fetch', (event) => {
-                    event.respondWith(caches.match(event.request).then(res => res || fetch(event.request)));
-                });
-            `], {type: 'application/javascript'}));
-        }
+        let dados = JSON.parse(localStorage.getItem('scanner_dados')) || [];
+        let etapa = 0;
+        let temp = {};
+        let paginaAtual = 1;
+        const porPagina = 10;
 
         const input = document.getElementById('main-input');
         const instrucao = document.getElementById('instrucao');
-        const modal = document.getElementById('modal');
-        
-        let etapa = 0; 
-        let dados = { codigo: '', frio: '', quente: '' };
 
-        input.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" && input.value.trim() !== "") {
-                const valor = input.value.trim();
-                
-                if (etapa === 0) {
-                    dados.codigo = valor;
-                    instrucao.innerText = "Digite o valor FRIO (Manual)";
-                    input.style.borderColor = "#007bff";
-                    etapa = 1;
-                } else if (etapa === 1) {
-                    dados.frio = valor;
-                    instrucao.innerText = "Digite o valor QUENTE (Manual)";
-                    input.style.borderColor = "#8b0000";
-                    etapa = 2;
-                } else if (etapa === 2) {
-                    dados.quente = valor;
-                    input.blur();
-                    modal.style.display = "flex";
-                }
-                
+        function renderizarTabela() {
+            const corpo = document.getElementById('tabela-corpo');
+            corpo.innerHTML = '';
+            const inicio = (paginaAtual - 1) * porPagina;
+            const paginaDados = dados.slice(inicio, inicio + porPagina);
+
+            paginaDados.forEach((item, index) => {
+                const realIndex = inicio + index;
+                corpo.innerHTML += `<tr><td>${item.codigo}</td><td>${item.frio}</td><td>${item.quente}</td><td style="color:${item.status === 'OK' ? '#28a745' : '#dc3545'}">${item.status}</td><td><button onclick="remover(${realIndex})">X</button></td></tr>`;
+            });
+            document.getElementById('paginacao').innerHTML = `Página ${paginaAtual} de ${Math.ceil(dados.length/porPagina) || 1} <br><button onclick="mudarPagina(-1)">Anterior</button><button onclick="mudarPagina(1)">Próxima</button>`;
+        }
+
+        function mudarPagina(dir) {
+            paginaAtual = Math.max(1, Math.min(paginaAtual + dir, Math.ceil(dados.length / porPagina) || 1));
+            renderizarTabela();
+        }
+
+        function remover(index) {
+            if (confirm("Eliminar esta linha?")) {
+                dados.splice(index, 1);
+                localStorage.setItem('scanner_dados', JSON.stringify(dados));
+                renderizarTabela();
+            }
+        }
+
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && input.value.trim() !== "") {
+                const val = input.value.trim();
+                if (etapa === 0) { temp.codigo = val; etapa = 1; instrucao.innerText = "Digite FRIO"; }
+                else if (etapa === 1) { temp.frio = val; etapa = 2; instrucao.innerText = "Digite QUENTE"; }
+                else if (etapa === 2) { temp.quente = val; document.getElementById('modal').style.display = "flex"; }
                 input.value = "";
-                input.focus();
             }
         });
 
         function finalizar(status) {
-            modal.style.display = "none";
-            const resultado = status ? "OK" : "NOK";
-            const cor = status ? "#28a745" : "#dc3545";
-            
-            const tabela = document.getElementById('tabela-corpo');
-            const row = tabela.insertRow(0);
-            row.innerHTML = `<td>${dados.codigo}</td><td class="val-frio">${dados.frio}</td><td class="val-quente">${dados.quente}</td><td style="color:${cor}; font-weight:bold;">${resultado}</td>`;
-            
-            dados = { codigo: '', frio: '', quente: '' };
-            etapa = 0;
-            instrucao.innerText = "Picar Código (Scanner)";
-            input.style.borderColor = "#444";
-            input.focus();
-        }
-
-        function confirmarExclusao(event) {
-            if (event.target.tagName === 'TD' && confirm("Eliminar linha?")) event.target.parentNode.remove();
+            dados.unshift({ ...temp, status: status ? 'OK' : 'NOK' });
+            localStorage.setItem('scanner_dados', JSON.stringify(dados));
+            document.getElementById('modal').style.display = "none";
+            etapa = 0; instrucao.innerText = "Picar Código (Scanner)";
+            renderizarTabela();
         }
 
         function exportarExcel() {
-            const wb = XLSX.utils.table_to_book(document.getElementById("tabela-dados"), {sheet: "Scanner"});
+            const ws = XLSX.utils.json_to_sheet(dados.map(item => ({
+                Código: String(item.codigo),
+                Frio: String(item.frio),
+                Quente: String(item.quente),
+                Status: String(item.status)
+            })));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Dados");
             XLSX.writeFile(wb, "Relatorio_Scanner.xlsx");
         }
+
+        renderizarTabela();
     </script>
 </body>
 </html>
