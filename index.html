@@ -7,40 +7,50 @@
     <title>Scanner Trigo Bosch</title>
 
     <link rel="manifest" href='data:application/manifest+json,{"name":"Trigo Bosch Scanner","short_name":"Trigo Bosch","start_url":"./","display":"standalone","background_color":"%23000000","theme_color":"%23000000","icons":[{"src":"https://github.com/user-attachments/assets/78790071-93f2-4de7-8db4-dcb8cc28b45b","sizes":"512x512","type":"image/png"}]}'>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 20px; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 900px; background: #1a1a1a; padding: 40px; border-radius: 20px; text-align: center; position: relative; }
-        .versao { position: absolute; top: 10px; right: 20px; font-size: 14px; color: #666; }
-        h2 { font-size: 2em; color: #ccc; margin-bottom: 20px; }
-        input { padding: 30px; font-size: 40px; width: 100%; border: 4px solid #444; border-radius: 15px; text-align: center; box-sizing: border-box; background: #000; color: #fff; outline: none; }
-        table { width: 100%; max-width: 900px; margin-top: 40px; border-collapse: collapse; background: #1a1a1a; font-size: 20px; }
-        th, td { border: 2px solid #333; padding: 15px; text-align: center; }
+        body { font-family: sans-serif; margin: 0; padding: 10px; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; box-sizing: border-box; }
+        .container { width: 100%; max-width: 600px; background: #1a1a1a; padding: 20px; border-radius: 15px; text-align: center; position: relative; box-sizing: border-box; }
+        .versao { position: absolute; top: 10px; right: 15px; font-size: 0.8rem; color: #666; }
+        h2 { font-size: 1.5rem; color: #ccc; margin-bottom: 15px; }
+        
+        input { padding: 20px; font-size: 1.5rem; width: 100%; border: 3px solid #444; border-radius: 10px; text-align: center; box-sizing: border-box; background: #000; color: #fff; outline: none; margin-bottom: 10px; }
+        
+        /* Tabela responsiva */
+        .table-wrapper { width: 100%; max-width: 600px; overflow-x: auto; margin-top: 20px; border-radius: 10px; }
+        table { width: 100%; border-collapse: collapse; background: #1a1a1a; font-size: 1rem; }
+        th, td { border: 1px solid #333; padding: 12px 8px; text-align: center; white-space: nowrap; }
         th { background: #333; }
+        
         .val-frio { color: #007bff; font-weight: bold; }
         .val-quente { color: #8b0000; font-weight: bold; } 
-        .btn-export { background-color: #28a745; width: 100%; max-width: 900px; margin-top: 20px; padding: 25px; font-size: 25px; border-radius: 15px; color: white; border: none; cursor: pointer; }
-        .paginacao { margin-top: 10px; }
         
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: #222; padding: 40px; border-radius: 20px; text-align: center; }
-        .btn-modal { padding: 30px 60px; font-size: 30px; margin: 10px; border: none; border-radius: 15px; cursor: pointer; color: white; font-weight: bold; }
+        .btn-export { background-color: #28a745; width: 100%; max-width: 600px; margin-top: 20px; padding: 20px; font-size: 1.2rem; border-radius: 10px; color: white; border: none; cursor: pointer; }
+        
+        /* Paginação melhorada para touch */
+        .paginacao { margin-top: 15px; display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
+        .paginacao button { padding: 10px 15px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white; }
+        
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #222; padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 400px; }
+        .btn-modal { padding: 20px; font-size: 1.5rem; margin: 10px; border: none; border-radius: 10px; cursor: pointer; color: white; font-weight: bold; width: 45%; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div class="versao">v1.0.0</div>
+        <div class="versao">v1.0.1</div>
         <h2 id="instrucao">Picar Código (Scanner)</h2>
         <input type="text" id="main-input" autocomplete="off" autofocus>
     </div>
 
-    <table id="tabela-dados">
-        <thead><tr><th>Código</th><th>Frio</th><th>Quente</th><th>Status</th></tr></thead>
-        <tbody id="tabela-corpo" onclick="confirmarExclusao(event)"></tbody>
-    </table>
+    <div class="table-wrapper">
+        <table id="tabela-dados">
+            <thead><tr><th>Código</th><th>Frio</th><th>Quente</th><th>Status</th></tr></thead>
+            <tbody id="tabela-corpo" onclick="confirmarExclusao(event)"></tbody>
+        </table>
+    </div>
     <div class="paginacao" id="paginacao"></div>
 
     <button class="btn-export" onclick="exportarExcel()">EXPORTAR PARA EXCEL</button>
@@ -58,14 +68,6 @@
         let paginaAtual = 1;
         const itensPorPagina = 10;
 
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register(new Blob([`
-                self.addEventListener('fetch', (event) => {
-                    event.respondWith(caches.match(event.request).then(res => res || fetch(event.request)));
-                });
-            `], {type: 'application/javascript'}));
-        }
-
         const input = document.getElementById('main-input');
         const instrucao = document.getElementById('instrucao');
         const modal = document.getElementById('modal');
@@ -79,9 +81,9 @@
             const fim = inicio + itensPorPagina;
             const paginado = listaDados.slice(inicio, fim);
 
-            paginado.forEach((item, index) => {
+            paginado.forEach((item, i) => {
                 const row = corpo.insertRow();
-                row.innerHTML = `<td style="display:none">${inicio + index}</td><td>${item.codigo}</td><td class="val-frio">${item.frio}</td><td class="val-quente">${item.quente}</td><td style="color:${item.status === 'OK' ? '#28a745' : '#dc3545'}; font-weight:bold;">${item.status}</td>`;
+                row.innerHTML = `<td style="display:none">${inicio + i}</td><td>${item.codigo}</td><td class="val-frio">${item.frio}</td><td class="val-quente">${item.quente}</td><td style="color:${item.status === 'OK' ? '#28a745' : '#dc3545'}; font-weight:bold;">${item.status}</td>`;
             });
             renderizarPaginacao();
         }
@@ -93,7 +95,6 @@
             for(let i=1; i<=totalPaginas; i++) {
                 const btn = document.createElement('button');
                 btn.innerText = i;
-                btn.style.margin = "5px";
                 btn.onclick = () => { paginaAtual = i; renderizarTabela(); };
                 pagDiv.appendChild(btn);
             }
