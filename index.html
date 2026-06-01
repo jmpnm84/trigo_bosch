@@ -1,120 +1,26 @@
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#000000">
-    <title>Scanner Trigo Bosch</title>
-
-    <link rel="manifest" href='data:application/manifest+json,{"name":"Trigo Bosch Scanner","short_name":"Trigo Bosch","start_url":"./","display":"standalone","background_color":"%23000000","theme_color":"%23000000","icons":[{"src":"https://github.com/user-attachments/assets/78790071-93f2-4de7-8db4-dcb8cc28b45b","sizes":"512x512","type":"image/png"}]}'>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
-    <style>
-        body { font-family: sans-serif; margin: 0; padding: 10px; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; box-sizing: border-box; }
-        .container { width: 100%; max-width: 600px; background: #1a1a1a; padding: 20px; border-radius: 15px; text-align: center; position: relative; box-sizing: border-box; }
-        .versao { position: absolute; top: 10px; right: 15px; font-size: 0.8rem; color: #666; }
-        h2 { font-size: 1.5rem; color: #ccc; margin-bottom: 15px; }
-        
-        input { padding: 20px; font-size: 1.5rem; width: 100%; border: 3px solid #444; border-radius: 10px; text-align: center; box-sizing: border-box; background: #000; color: #fff; outline: none; margin-bottom: 10px; }
-        
-        /* Tabela responsiva */
-        .table-wrapper { width: 100%; max-width: 600px; overflow-x: auto; margin-top: 20px; border-radius: 10px; }
-        table { width: 100%; border-collapse: collapse; background: #1a1a1a; font-size: 1rem; }
-        th, td { border: 1px solid #333; padding: 12px 8px; text-align: center; white-space: nowrap; }
-        th { background: #333; }
-        
-        .val-frio { color: #007bff; font-weight: bold; }
-        .val-quente { color: #8b0000; font-weight: bold; } 
-        
-        .btn-export { background-color: #28a745; width: 100%; max-width: 600px; margin-top: 20px; padding: 20px; font-size: 1.2rem; border-radius: 10px; color: white; border: none; cursor: pointer; }
-        
-        /* Paginação melhorada para touch */
-        .paginacao { margin-top: 15px; display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
-        .paginacao button { padding: 10px 15px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white; }
-        
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: #222; padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 400px; }
-        .btn-modal { padding: 20px; font-size: 1.5rem; margin: 10px; border: none; border-radius: 10px; cursor: pointer; color: white; font-weight: bold; width: 45%; }
-        #filtro-input { font-size: 1rem; padding: 10px; margin-bottom: 0; border: 1px solid #444; }
-    </style>
-</head>
-<body>
-
-    <div class="container">
-        <div class="versao">v1.0.4</div>
-        <h2 id="instrucao">Picar Código (Scanner)</h2>
-        <input type="text" id="main-input" autocomplete="off" autofocus>
-    </div>
-
-    <div class="table-wrapper">
-        <input type="text" id="filtro-input" placeholder="🔍 Procurar código..." oninput="renderizarTabela()">
-        <table id="tabela-dados">
-            <thead><tr><th>Código</th><th>Frio</th><th>Quente</th><th>Status</th></tr></thead>
-            <tbody id="tabela-corpo" onclick="confirmarExclusao(event)"></tbody>
-        </table>
-    </div>
-    <div class="paginacao" id="paginacao"></div>
-
+<!DOCTYPE html><html lang="pt"><head>    <meta charset="UTF-8">    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">    <meta name="theme-color" content="#000000">    <title>Scanner Trigo Bosch</title>
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Trigo Bosch Scanner","short_name":"Trigo Bosch","start_url":"./","display":"standalone","background_color":"%23000000","theme_color":"%23000000","icons":[{"src":"https://github.com/user-attachments/assets/78790071-93f2-4de7-8db4-dcb8cc28b45b","sizes":"512x512","type":"image/png"}]}'>    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>        <style>        body { font-family: sans-serif; margin: 0; padding: 10px; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; box-sizing: border-box; }        .container { width: 100%; max-width: 600px; background: #1a1a1a; padding: 20px; border-radius: 15px; text-align: center; position: relative; box-sizing: border-box; }        .versao { position: absolute; top: 10px; right: 15px; font-size: 0.8rem; color: #666; }        h2 { font-size: 1.5rem; color: #ccc; margin-bottom: 15px; }                input { padding: 20px; font-size: 1.5rem; width: 100%; border: 3px solid #444; border-radius: 10px; text-align: center; box-sizing: border-box; background: #000; color: #fff; outline: none; margin-bottom: 10px; }                /* Tabela responsiva */        .table-wrapper { width: 100%; max-width: 600px; overflow-x: auto; margin-top: 20px; border-radius: 10px; }        table { width: 100%; border-collapse: collapse; background: #1a1a1a; font-size: 1rem; }        th, td { border: 1px solid #333; padding: 12px 8px; text-align: center; white-space: nowrap; }        th { background: #333; }                .val-frio { color: #007bff; font-weight: bold; }        .val-quente { color: #8b0000; font-weight: bold; }                 .btn-export { background-color: #28a745; width: 100%; max-width: 600px; margin-top: 20px; padding: 20px; font-size: 1.2rem; border-radius: 10px; color: white; border: none; cursor: pointer; }                /* Paginação melhorada para touch */        .paginacao { margin-top: 15px; display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }        .paginacao button { padding: 10px 15px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white; }                #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }        .modal-content { background: #222; padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 400px; }        .btn-modal { padding: 20px; font-size: 1.5rem; margin: 10px; border: none; border-radius: 10px; cursor: pointer; color: white; font-weight: bold; width: 45%; }        #filtro-input { font-size: 1rem; padding: 10px; margin-bottom: 0; border: 1px solid #444; }    </style></head><body>
+    <div class="container">        <div class="versao">v1.0.5</div>        <h2 id="instrucao">Picar Código (Scanner)</h2>        <input type="text" id="main-input" autocomplete="off" autofocus>    </div>
+    <div class="table-wrapper">        <input type="text" id="filtro-input" placeholder="🔍 Procurar código..." oninput="renderizarTabela()">        <table id="tabela-dados">            <thead><tr><th>Código</th><th>Frio</th><th>Quente</th><th>Status</th></tr></thead>            <tbody id="tabela-corpo" onclick="confirmarExclusao(event)"></tbody>        </table>    </div>    <div class="paginacao" id="paginacao"></div>
     <button class="btn-export" onclick="exportarExcel()">EXPORTAR PARA EXCEL</button>
+    <div id="modal">        <div class="modal-content">            <h2 id="modal-titulo">Resultado?</h2>            <button class="btn-modal" style="background: #28a745;" onclick="finalizar(true)">OK</button>            <button class="btn-modal" style="background: #dc3545;" onclick="finalizar(false)">NOK</button>        </div>    </div>
+    <script>        let listaDados = JSON.parse(localStorage.getItem('scannerDados')) || [];        let paginaAtual = 1;        const itensPorPagina = 10;
+        const input = document.getElementById('main-input');        const filtro = document.getElementById('filtro-input');        const instrucao = document.getElementById('instrucao');        const modal = document.getElementById('modal');        let etapa = 0;         let dados = { codigo: '', frio: '', quente: '' };
+        function renderizarTabela() {            const corpo = document.getElementById('tabela-corpo');            corpo.innerHTML = '';                        const termoBusca = filtro.value.toLowerCase();            const dadosFiltrados = listaDados.filter(item => item.codigo.toLowerCase().includes(termoBusca));                        const inicio = (paginaAtual - 1) * itensPorPagina;            const fim = inicio + itensPorPagina;            const paginado = dadosFiltrados.slice(inicio, fim);
+            paginado.forEach((item, i) => {                const realIndex = listaDados.indexOf(item);                const row = corpo.insertRow();                row.innerHTML = `<td style="display:none">${realIndex}</td><td>${item.codigo}</td><td class="val-frio">${item.frio}</td><td class="val-quente">${item.quente}</td><td style="color:${item.status === 'OK' ? '#28a745' : '#dc3545'}; font-weight:bold;">${item.status}</td>`;            });            renderizarPaginacao(dadosFiltrados.length);        } paraffin
 
-    <div id="modal">
-        <div class="modal-content">
-            <h2 id="modal-titulo">Resultado?</h2>
-            <button class="btn-modal" style="background: #28a745;" onclick="finalizar(true)">OK</button>
-            <button class="btn-modal" style="background: #dc3545;" onclick="finalizar(false)">NOK</button>
-        </div>
-    </div>
-
-    <script>
-        let listaDados = JSON.parse(localStorage.getItem('scannerDados')) || [];
-        let paginaAtual = 1;
-        const itensPorPagina = 10;
-
-        const input = document.getElementById('main-input');
-        const filtro = document.getElementById('filtro-input');
-        const instrucao = document.getElementById('instrucao');
-        const modal = document.getElementById('modal');
-        let etapa = 0; 
-        let dados = { codigo: '', frio: '', quente: '' };
-
-        function renderizarTabela() {
-            const corpo = document.getElementById('tabela-corpo');
-            corpo.innerHTML = '';
-            
-            const termoBusca = filtro.value.toLowerCase();
-            const dadosFiltrados = listaDados.filter(item => item.codigo.toLowerCase().includes(termoBusca));
-            
-            const inicio = (paginaAtual - 1) * itensPorPagina;
-            const fim = inicio + itensPorPagina;
-            const paginado = dadosFiltrados.slice(inicio, fim);
-
-            paginado.forEach((item, i) => {
-                const realIndex = listaDados.indexOf(item);
-                const row = corpo.insertRow();
-                row.innerHTML = `<td style="display:none">${realIndex}</td><td>${item.codigo}</td><td class="val-frio">${item.frio}</td><td class="val-quente">${item.quente}</td><td style="color:${item.status === 'OK' ? '#28a745' : '#dc3545'}; font-weight:bold;">${item.status}</td>`;
-            });
-            renderizarPaginacao(dadosFiltrados.length);
-        }
-
-        function renderizarPaginacao(totalItens) {
-            const pagDiv = document.getElementById('paginacao');
-            pagDiv.innerHTML = '';
-            const totalPaginas = Math.ceil(totalItens / itensPorPagina);
-            for(let i=1; i<=totalPaginas; i++) {
-                const btn = document.createElement('button');
-                btn.innerText = i;
-                btn.onclick = () => { paginaAtual = i; renderizarTabela(); };
-                pagDiv.appendChild(btn);
-            }
-        }
+        function renderizarPaginacao(totalItens) {            const pagDiv = document.getElementById('paginacao');            pagDiv.innerHTML = '';            const totalPaginas = Math.ceil(totalItens / itensPorPagina);            for(let i=1; i<=totalPaginas; i++) {                const btn = document.createElement('button');                btn.innerText = i;                btn.onclick = () => { paginaAtual = i; renderizarTabela(); };                pagDiv.appendChild(btn);            }        }
 
         input.addEventListener("keydown", (event) => {
             if (event.key === "Enter" && input.value.trim() !== "") {
+                event.preventDefault(); // Impede que o "Enter" da Zebra salte para o próximo campo
                 const valor = input.value.trim();
+                
                 if (etapa === 0) { 
                     if (listaDados.some(item => item.codigo === valor)) {
                         alert("Este código já foi registrado!");
                         input.value = "";
+                        setTimeout(() => input.focus(), 50);
                         return;
                     }
                     dados.codigo = valor; 
@@ -122,9 +28,24 @@
                     input.style.borderColor = "#007bff"; 
                     etapa = 1; 
                 } 
-                else if (etapa === 1) { dados.frio = valor; instrucao.innerText = "Digite o valor QUENTE"; input.style.borderColor = "#8b0000"; etapa = 2; } 
-                else if (etapa === 2) { dados.quente = valor; input.blur(); modal.style.display = "flex"; }
+                else if (etapa === 1) { 
+                    dados.frio = valor; 
+                    instrucao.innerText = "Digite o valor QUENTE"; 
+                    input.style.borderColor = "#8b0000"; 
+                    etapa = 2; 
+                } 
+                else if (etapa === 2) { 
+                    dados.quente = valor; 
+                    input.blur(); 
+                    modal.style.display = "flex"; 
+                }
+                
                 input.value = "";
+                
+                // Força o foco a manter-se no campo correto se não estiver no modal
+                if (etapa < 2) {
+                    setTimeout(() => input.focus(), 50);
+                }
             }
         });
 
@@ -137,7 +58,12 @@
             etapa = 0;
             instrucao.innerText = "Picar Código (Scanner)";
             input.style.borderColor = "#444";
-            input.focus();
+            
+            // Pequeno atraso para garantir que o foco volta de forma limpa após fechar o modal
+            setTimeout(() => {
+                input.value = "";
+                input.focus();
+            }, 100);
         }
 
         function confirmarExclusao(event) {
@@ -157,6 +83,4 @@
         }
 
         renderizarTabela();
-    </script>
-</body>
-</html>
+    </script></body></html>
