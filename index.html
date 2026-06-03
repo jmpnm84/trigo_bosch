@@ -26,7 +26,9 @@
         .val-frio { color: #007bff; font-weight: bold; }
         .val-quente { color: #8b0000; font-weight: bold; } 
         
-        .btn-export { background-color: #28a745; width: 100%; max-width: 600px; margin-top: 20px; padding: 20px; font-size: 1.2rem; border-radius: 10px; color: white; border: none; cursor: pointer; }
+        .btn-sync { background-color: #0056b3; width: 100%; max-width: 600px; margin-top: 20px; padding: 20px; font-size: 1.2rem; border-radius: 10px; color: white; border: none; cursor: pointer; font-weight: bold; }
+        .btn-sync:disabled { background-color: #444; cursor: not-allowed; }
+        .btn-export { background-color: #28a745; width: 100%; max-width: 600px; margin-top: 10px; padding: 15px; font-size: 1rem; border-radius: 10px; color: white; border: none; cursor: pointer; }
         
         /* Paginação melhorada para touch */
         .paginacao { margin-top: 15px; display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
@@ -40,7 +42,7 @@
 <body>
 
     <div class="container">
-        <div class="versao">v1.0.4.1</div>
+        <div class="versao">v2.1.0</div>
         <h2 id="instrucao">Picar Código (Scanner)</h2>
         <input type="text" id="main-input" autocomplete="off" autofocus>
     </div>
@@ -53,7 +55,9 @@
     </div>
     <div class="paginacao" id="paginacao"></div>
 
-    <button class="btn-export" onclick="exportarExcel()">EXPORTAR PARA EXCEL</button>
+    <button class="btn-sync" id="btn-sincronizar" onclick="sincronizarTodoHistorico()">SINCRONIZAR TODO O HISTÓRICO ☁️</button>
+    
+    <button class="btn-export" onclick="exportarExcel()">Exportar Backup para Excel (Local)</button>
 
     <div id="modal">
         <div class="modal-content">
@@ -64,6 +68,9 @@
     </div>
 
     <script>
+        // URL de Produção do Google Apps Script fornecido
+        const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxiv6W3XqrV50aMyrvP6utQyDZ16dWaz7_c5ixE8Xo-CqS257mmZaSHnS_qpDvFQ47EKw/exec";
+
         let listaDados = JSON.parse(localStorage.getItem('scannerDados')) || [];
         let paginaAtual = 1;
         const itensPorPagina = 10;
@@ -71,6 +78,7 @@
         const input = document.getElementById('main-input');
         const instrucao = document.getElementById('instrucao');
         const modal = document.getElementById('modal');
+        const btnSincronizar = document.getElementById('btn-sincronizar');
         let etapa = 0; 
         let dados = { codigo: '', frio: '', quente: '' };
 
@@ -124,9 +132,17 @@
 
         function finalizar(status) {
             modal.style.display = "none";
-            listaDados.unshift({ ...dados, status: status ? "OK" : "NOK" });
+            const novoItem = { ...dados, status: status ? "OK" : "NOK" };
+            
+            // Guarda localmente primeiro (segurança contra perda de dados)
+            listaDados.unshift(novoItem);
             localStorage.setItem('scannerDados', JSON.stringify(listaDados));
             renderizarTabela();
+            
+            // Tenta o envio individual em background
+            enviarParaGoogleDrive(novoItem);
+
+            // Reseta a interface para o próximo ciclo
             dados = { codigo: '', frio: '', quente: '' };
             etapa = 0;
             instrucao.innerText = "Picar Código (Scanner)";
@@ -134,8 +150,90 @@
             input.focus();
         }
 
+        // Envio automático em segundo plano para cada bip realizado
+        function enviarParaGoogleDrive(item) {
+            exibirAvisoTemporario("Sincronizando registo... ⏳", "#ffc107");
+            
+            fetch(GOOGLE_WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors", 
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(item)
+            })
+            .then(() => {
+                console.log("Item sincronizado.");
+                exibirAvisoTemporario("Sincronizado com sucesso! ✅", "#28a745");
+            })
+            .catch(error => {
+                console.error("Erro na sincronização:", error);
+                exibirAvisoTemporario("Erro ao salvar online! ❌ (Guardado local)", "#dc3545");
+            });
+        }
+
+        // NOVA FUNÇÃO: Exporta e acumula todo o histórico do LocalStorage para o Google Sheets/Drive
+        function sincronizarTodoHistorico() {
+            if (listaDados.length === 0) {
+                alert("Não existem dados no histórico local para exportar!");
+                return;
+            }
+
+            if (!confirm(`Deseja exportar e acumular todos os ${listaDados.length} registos no Google Drive?`)) {
+                return;
+            }
+
+            btnSincronizar.disabled = true;
+            btnSincronizar.innerText = "A ENVIAR HISTÓRICO... POR FAVOR AGUARDE";
+            exibirAvisoTemporario("A exportar histórico completo... ☁️", "#007bff");
+
+            // Envia cada item da lista sequencialmente ou em rajada
+            // Nota: Como o Apps Script lida bem com requisições assíncronas em lote, 
+            // enviamos um loop das promessas para garantir que todas entram na folha de cálculo.
+            let promessas = listaDados.map(item => {
+                return fetch(GOOGLE_WEB_APP_URL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(item)
+                });
+            });
+
+            Promise.all(promessas)
+                .then(() => {
+                    alert("Todo o histórico foi exportado e acumulado no Google Drive com sucesso!");
+                    exibirAvisoTemporario("Histórico Total Sincronizado! ✅", "#28a745");
+                })
+                .catch(error => {
+                    console.error("Erro ao sincronizar lote:", error);
+                    alert("Ocorreu um erro ao enviar alguns registos. Verifique a ligação.");
+                    exibirAvisoTemporario("Falha na sincronização em lote! ❌", "#dc3545");
+                })
+                .finally(() => {
+                    btnSincronizar.disabled = false;
+                    btnSincronizar.innerText = "SINCRONIZAR TODO O HISTÓRICO ☁️";
+                });
+        }
+
+        // Função utilitária para mudar o cabeçalho temporariamente como feedback visual
+        function exibirAvisoTemporario(texto, cor) {
+            const instrucaoOriginal = instrucao.innerText;
+            const corOriginal = instrucao.style.color;
+            
+            instrucao.innerText = texto;
+            instrucao.style.color = cor;
+            
+            // Volta ao texto normal após 3.5 segundos se estiver no estado inicial
+            setTimeout(() => {
+                if (etapa === 0 && (instrucao.innerText === texto)) {
+                    instrucao.innerText = "Picar Código (Scanner)";
+                    instrucao.style.color = corOriginal;
+                }
+            }, 3500);
+        }
+
         function confirmarExclusao(event) {
-            if (event.target.tagName === 'TD' && confirm("Eliminar linha?")) {
+            if (event.target.tagName === 'TD' && confirm("Eliminar linha do histórico local?")) {
                 const index = parseInt(event.target.parentNode.cells[0].innerText);
                 listaDados.splice(index, 1);
                 localStorage.setItem('scannerDados', JSON.stringify(listaDados));
@@ -147,7 +245,7 @@
             const ws = XLSX.utils.json_to_sheet(listaDados);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Scanner");
-            XLSX.writeFile(wb, "Relatorio_Scanner.xlsx");
+            XLSX.writeFile(wb, "Relatorio_Scanner_Backup.xlsx");
         }
 
         renderizarTabela();
