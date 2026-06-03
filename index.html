@@ -17,7 +17,6 @@
         
         input { padding: 20px; font-size: 1.5rem; width: 100%; border: 3px solid #444; border-radius: 10px; text-align: center; box-sizing: border-box; background: #000; color: #fff; outline: none; margin-bottom: 10px; }
         
-        /* Tabela responsiva */
         .table-wrapper { width: 100%; max-width: 600px; overflow-x: auto; margin-top: 20px; border-radius: 10px; }
         table { width: 100%; border-collapse: collapse; background: #1a1a1a; font-size: 1rem; }
         th, td { border: 1px solid #333; padding: 12px 8px; text-align: center; white-space: nowrap; }
@@ -30,7 +29,6 @@
         .btn-sync:disabled { background-color: #444; cursor: not-allowed; }
         .btn-export { background-color: #28a745; width: 100%; max-width: 600px; margin-top: 10px; padding: 15px; font-size: 1rem; border-radius: 10px; color: white; border: none; cursor: pointer; }
         
-        /* Paginação melhorada para touch */
         .paginacao { margin-top: 15px; display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
         .paginacao button { padding: 10px 15px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white; }
         
@@ -42,7 +40,7 @@
 <body>
 
     <div class="container">
-        <div class="versao">v2.1.0</div>
+        <div class="versao">v3.0.0</div>
         <h2 id="instrucao">Picar Código (Scanner)</h2>
         <input type="text" id="main-input" autocomplete="off" autofocus>
     </div>
@@ -68,7 +66,7 @@
     </div>
 
     <script>
-        // URL de Produção do Google Apps Script fornecido
+        // URL de Produção do Google Apps Script
         const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxiv6W3XqrV50aMyrvP6utQyDZ16dWaz7_c5ixE8Xo-CqS257mmZaSHnS_qpDvFQ47EKw/exec";
 
         let listaDados = JSON.parse(localStorage.getItem('scannerDados')) || [];
@@ -90,7 +88,7 @@
             const fim = inicio + itensPorPagina;
             const paginado = listaDados.slice(inicio, fim);
 
-            paginado.forEach((item, i) => {
+            paginado.forEach((item) => {
                 const realIndex = listaDados.indexOf(item);
                 const row = corpo.insertRow();
                 row.innerHTML = `<td style="display:none">${realIndex}</td><td>${item.codigo}</td><td class="val-frio">${item.frio}</td><td class="val-quente">${item.quente}</td><td style="color:${item.status === 'OK' ? '#28a745' : '#dc3545'}; font-weight:bold;">${item.status}</td>`;
@@ -105,6 +103,7 @@
             for(let i=1; i<=totalPaginas; i++) {
                 const btn = document.createElement('button');
                 btn.innerText = i;
+                btn.className = (i === paginaAtual) ? "active" : ""; // Para controlo visual se desejares aplicar estilo posterior
                 btn.onclick = () => { paginaAtual = i; renderizarTabela(); };
                 pagDiv.appendChild(btn);
             }
@@ -134,15 +133,13 @@
             modal.style.display = "none";
             const novoItem = { ...dados, status: status ? "OK" : "NOK" };
             
-            // Guarda localmente primeiro (segurança contra perda de dados)
             listaDados.unshift(novoItem);
             localStorage.setItem('scannerDados', JSON.stringify(listaDados));
             renderizarTabela();
             
-            // Tenta o envio individual em background
-            enviarParaGoogleDrive(novoItem);
+            // Envia em tempo real dentro de um Array (Lote de 1 item)
+            enviarParaGoogleDrive([novoItem]);
 
-            // Reseta a interface para o próximo ciclo
             dados = { codigo: '', frio: '', quente: '' };
             etapa = 0;
             instrucao.innerText = "Picar Código (Scanner)";
@@ -150,29 +147,30 @@
             input.focus();
         }
 
-        // Envio automático em segundo plano para cada bip realizado
-        function enviarParaGoogleDrive(item) {
-            exibirAvisoTemporario("Sincronizando registo... ⏳", "#ffc107");
+        // Função de envio unificada que aceita listas de dados (Arrays)
+        function enviarParaGoogleDrive(arrayDados) {
+            exibirAvisoTemporario("Sincronizando... ⏳", "#ffc107");
             
-            fetch(GOOGLE_WEB_APP_URL, {
+            return fetch(GOOGLE_WEB_APP_URL, {
                 method: "POST",
                 mode: "no-cors", 
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify(item)
+                body: JSON.stringify(arrayDados) // Transmite a lista completa
             })
             .then(() => {
-                console.log("Item sincronizado.");
+                console.log("Sincronização concluída.");
                 exibirAvisoTemporario("Sincronizado com sucesso! ✅", "#28a745");
             })
             .catch(error => {
                 console.error("Erro na sincronização:", error);
-                exibirAvisoTemporario("Erro ao salvar online! ❌ (Guardado local)", "#dc3545");
+                exibirAvisoTemporario("Erro ao salvar online! ❌", "#dc3545");
+                throw error;
             });
         }
 
-        // NOVA FUNÇÃO: Exporta e acumula todo o histórico do LocalStorage para o Google Sheets/Drive
+        // Envia o histórico completo de 200+ itens num único pedido de rede HTTP
         function sincronizarTodoHistorico() {
             if (listaDados.length === 0) {
                 alert("Não existem dados no histórico local para exportar!");
@@ -187,27 +185,13 @@
             btnSincronizar.innerText = "A ENVIAR HISTÓRICO... POR FAVOR AGUARDE";
             exibirAvisoTemporario("A exportar histórico completo... ☁️", "#007bff");
 
-            // Envia cada item da lista sequencialmente ou em rajada
-            // Nota: Como o Apps Script lida bem com requisições assíncronas em lote, 
-            // enviamos um loop das promessas para garantir que todas entram na folha de cálculo.
-            let promessas = listaDados.map(item => {
-                return fetch(GOOGLE_WEB_APP_URL, {
-                    method: "POST",
-                    mode: "no-cors",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(item)
-                });
-            });
-
-            Promise.all(promessas)
+            // Envia a lista inteira de uma só vez
+            enviarParaGoogleDrive(listaDados)
                 .then(() => {
                     alert("Todo o histórico foi exportado e acumulado no Google Drive com sucesso!");
-                    exibirAvisoTemporario("Histórico Total Sincronizado! ✅", "#28a745");
                 })
                 .catch(error => {
-                    console.error("Erro ao sincronizar lote:", error);
                     alert("Ocorreu um erro ao enviar alguns registos. Verifique a ligação.");
-                    exibirAvisoTemporario("Falha na sincronização em lote! ❌", "#dc3545");
                 })
                 .finally(() => {
                     btnSincronizar.disabled = false;
@@ -215,15 +199,11 @@
                 });
         }
 
-        // Função utilitária para mudar o cabeçalho temporariamente como feedback visual
         function exibirAvisoTemporario(texto, cor) {
-            const instrucaoOriginal = instrucao.innerText;
             const corOriginal = instrucao.style.color;
-            
             instrucao.innerText = texto;
             instrucao.style.color = cor;
             
-            // Volta ao texto normal após 3.5 segundos se estiver no estado inicial
             setTimeout(() => {
                 if (etapa === 0 && (instrucao.innerText === texto)) {
                     instrucao.innerText = "Picar Código (Scanner)";
