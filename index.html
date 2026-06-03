@@ -40,14 +40,14 @@
 <body>
 
     <div class="container">
-        <div class="versao">v3.0.0</div>
+        <div class="versao">v3.2.0</div>
         <h2 id="instrucao">Picar Código (Scanner)</h2>
         <input type="text" id="main-input" autocomplete="off" autofocus>
     </div>
 
     <div class="table-wrapper">
         <table id="tabela-dados">
-            <thead><tr><th>Código</th><th>Frio</th><th>Quente</th><th>Status</th></tr></thead>
+            <thead><tr><th>Data/Hora</th><th>Código</th><th>Frio</th><th>Quente</th><th>Status</th></tr></thead>
             <tbody id="tabela-corpo" onclick="confirmarExclusao(event)"></tbody>
         </table>
     </div>
@@ -66,7 +66,6 @@
     </div>
 
     <script>
-        // URL de Produção do Google Apps Script
         const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxiv6W3XqrV50aMyrvP6utQyDZ16dWaz7_c5ixE8Xo-CqS257mmZaSHnS_qpDvFQ47EKw/exec";
 
         let listaDados = JSON.parse(localStorage.getItem('scannerDados')) || [];
@@ -78,7 +77,7 @@
         const modal = document.getElementById('modal');
         const btnSincronizar = document.getElementById('btn-sincronizar');
         let etapa = 0; 
-        let dados = { codigo: '', frio: '', quente: '' };
+        let dados = { dataHora: '', codigo: '', frio: '', quente: '' };
 
         function renderizarTabela() {
             const corpo = document.getElementById('tabela-corpo');
@@ -91,7 +90,7 @@
             paginado.forEach((item) => {
                 const realIndex = listaDados.indexOf(item);
                 const row = corpo.insertRow();
-                row.innerHTML = `<td style="display:none">${realIndex}</td><td>${item.codigo}</td><td class="val-frio">${item.frio}</td><td class="val-quente">${item.quente}</td><td style="color:${item.status === 'OK' ? '#28a745' : '#dc3545'}; font-weight:bold;">${item.status}</td>`;
+                row.innerHTML = `<td style="display:none">${realIndex}</td><td>${item.dataHora || ''}</td><td>${item.codigo}</td><td class="val-frio">${item.frio}</td><td class="val-quente">${item.quente}</td><td style="color:${item.status === 'OK' ? '#28a745' : '#dc3545'}; font-weight:bold;">${item.status}</td>`;
             });
             renderizarPaginacao(listaDados.length);
         }
@@ -103,7 +102,7 @@
             for(let i=1; i<=totalPaginas; i++) {
                 const btn = document.createElement('button');
                 btn.innerText = i;
-                btn.className = (i === paginaAtual) ? "active" : ""; // Para controlo visual se desejares aplicar estilo posterior
+                btn.className = (i === paginaAtual) ? "active" : "";
                 btn.onclick = () => { paginaAtual = i; renderizarTabela(); };
                 pagDiv.appendChild(btn);
             }
@@ -131,23 +130,26 @@
 
         function finalizar(status) {
             modal.style.display = "none";
+            
+            // Captura a data e hora atual do sistema local
+            const agora = new Date();
+            dados.dataHora = agora.toLocaleString('pt-PT');
+
             const novoItem = { ...dados, status: status ? "OK" : "NOK" };
             
             listaDados.unshift(novoItem);
             localStorage.setItem('scannerDados', JSON.stringify(listaDados));
             renderizarTabela();
             
-            // Envia em tempo real dentro de um Array (Lote de 1 item)
             enviarParaGoogleDrive([novoItem]);
 
-            dados = { codigo: '', frio: '', quente: '' };
+            dados = { dataHora: '', codigo: '', frio: '', quente: '' };
             etapa = 0;
             instrucao.innerText = "Picar Código (Scanner)";
             input.style.borderColor = "#444";
             input.focus();
         }
 
-        // Função de envio unificada que aceita listas de dados (Arrays)
         function enviarParaGoogleDrive(arrayDados) {
             exibirAvisoTemporario("Sincronizando... ⏳", "#ffc107");
             
@@ -157,7 +159,7 @@
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify(arrayDados) // Transmite a lista completa
+                body: JSON.stringify(arrayDados)
             })
             .then(() => {
                 console.log("Sincronização concluída.");
@@ -170,7 +172,6 @@
             });
         }
 
-        // Envia o histórico completo de 200 ou + itens num único pedido de rede HTTP
         function sincronizarTodoHistorico() {
             if (listaDados.length === 0) {
                 alert("Não existem dados no histórico local para exportar!");
@@ -185,7 +186,6 @@
             btnSincronizar.innerText = "A ENVIAR HISTÓRICO... POR FAVOR AGUARDE";
             exibirAvisoTemporario("A exportar histórico completo... ☁️", "#007bff");
 
-            // Envia a lista inteira de uma só vez
             enviarParaGoogleDrive(listaDados)
                 .then(() => {
                     alert("Todo o histórico foi exportado e acumulado no Google Drive com sucesso!");
