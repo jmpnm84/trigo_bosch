@@ -7,7 +7,12 @@
   "theme_color": "#000000",
   "icons": [
     {
-      "src": "./icone.png",
+      "src": "https://github.com/user-attachments/assets/551468d9-5560-4c73-bd60-2725c64d8476",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://github.com/user-attachments/assets/551468d9-5560-4c73-bd60-2725c64d8476",
       "sizes": "512x512",
       "type": "image/png"
     }
