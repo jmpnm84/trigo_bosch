@@ -2,8 +2,7 @@ const CACHE_NAME = 'trigo-bosch-v1';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './manifest.json',
-  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+  './manifest.json'
 ];
 
 // Instalação do Service Worker
@@ -34,7 +33,7 @@ self.addEventListener('activate', (event) => {
 
 // Interceção de pedidos de rede
 self.addEventListener('fetch', (event) => {
-  // Ignora pedidos para o Google Apps Script para evitar problemas com requisições POST offline
+  // Ignora pedidos para o Google Apps Script para evitar problemas com requisições POST
   if (event.request.url.includes('script.google.com')) {
     return;
   }
